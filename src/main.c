@@ -1,6 +1,6 @@
 #include <time.h>
-
-#include "main.h"
+#include <stdlib.h>
+#include <stdio.h>
 
 struct die{
     int max_value;
@@ -99,7 +99,9 @@ retry:
         return EXIT;
     default:
         if(input != '\n')
-            getchar();
+            while ((input = getchar()) != '\n' && input != EOF)
+                ;
+
         error_count++;
         printf("Invalid input\n");
         if(error_count < 3)
