@@ -87,6 +87,7 @@ void try_matches(regex_t *compiled_pattern)
 {
   int error;
   char test_pattern[1024];
+  regmatch_t pmatch;
   do {
     puts("");
     puts("Text to match:");
@@ -95,8 +96,12 @@ void try_matches(regex_t *compiled_pattern)
 
     if (strlen(test_pattern) == 0) break; /* Loop-and-a-half */
 
-    error = regexec(compiled_pattern, test_pattern, (size_t) 0, NULL, 0);
+    error = regexec(compiled_pattern, test_pattern, (size_t) 1, &pmatch, 0);
     if (error == 0) {
+        printf("With the whole expression, "
+             "a matched substring \"%.*s\" is found at position %d to %d.\n",
+             pmatch.rm_eo - pmatch.rm_so, &test_pattern[pmatch.rm_so],
+             pmatch.rm_so, pmatch.rm_eo - 1);
       puts("  MATCH");
     } else if (error == REG_NOMATCH) {
       puts("  NO MATCH");
@@ -123,7 +128,7 @@ int main()
 
     if (strlen(pattern) == 0) break; /* Loop-and-a-half */
 
-    error = regcomp(&compiled_pattern, pattern, REG_EXTENDED | REG_NOSUB);
+    error = regcomp(&compiled_pattern, pattern, REG_EXTENDED);
     if (error) {
       puts("Regex compilation failed");
       exit(error);
