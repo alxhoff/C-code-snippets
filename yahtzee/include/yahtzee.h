@@ -14,6 +14,6 @@ struct cup{
 struct cup *create_cup( int dice_count );
 signed char fill_cup( struct cup *cup_to_fill, int max_value );
 void roll_cup( struct cup *current_cup );
-void print_cup( struct cup *current_cup );
+void print_cup( struct cup *current_cup, unsigned int *count );
 
 #endif

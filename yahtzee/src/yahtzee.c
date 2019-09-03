@@ -65,8 +65,11 @@ void roll_cup( struct cup *current_cup )
         roll_die(current_cup->dice[i]);
 }
 
-void print_cup( struct cup *current_cup )
+void print_cup( struct cup *current_cup, unsigned int *count )
 {
+	if(count)
+		printf("The die roll count was %d\n", *count);
+
     for(int i = 0; i < current_cup->dice_count; i++)
         printf("Die %d has a value of %d\n", i, 
                 current_cup->dice[i]->current_value);

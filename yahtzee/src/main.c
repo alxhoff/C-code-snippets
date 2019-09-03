@@ -70,13 +70,16 @@ int main(int argc, char *argv[])
 	int max_value = 0, dice_count = 0;
 	int ret;
 	struct cup *my_cup = NULL;
+	unsigned int roll_count = 0;
 
 	prompt_int("Please enter the max value of each die", &max_value);
 	prompt_int("Please enter the number of die in the cup", &dice_count);
 
 	my_cup = create_cup(dice_count);
 
+
 	ret = fill_cup(my_cup, max_value);
+
 	if (ret) //Filling failed
 		exit(EXIT_FAILURE);
 
@@ -84,10 +87,19 @@ int main(int argc, char *argv[])
 roll_again:
 	ret = prompt_cont_print();
 	if (ret == ROLL) {
-		roll_cup(my_cup);
+		roll_count = 0;
+		roll_cup(my_cup); // Initial roll
+
+		while(!check_cup(my_cup)){
+			roll_cup(my_cup);
+			roll_count++;
+		}
+
+		print_cup(my_cup, &roll_count);
+
 		goto roll_again;
 	} else if (ret == PRINT) {
-		print_cup(my_cup);
+		print_cup(my_cup, NULL);
 		goto roll_again;
 	} else if (ret == EXIT)
 		exit(EXIT_SUCCESS);
