@@ -15,7 +15,7 @@ retry:
     scanf("%d", value);
 
     if(!*value)
-    {
+    {message
         printf("You cannot enter zero\n");
         goto retry;
     }
@@ -54,7 +54,18 @@ retry:
             goto retry;
         else
             return 0; //Zero on error
+        break;
     }
+}
+
+unsigned char check_cup(struct cup *my_cup){
+
+	for(int i = 1; i < my_cup->dice_count; i++)
+		if(my_cup->dice[i]->current_value !=
+				my_cup->dice[i-1]->current_value)
+			return 0;
+
+	return 1;
 }
 
 int main(int argc, char* argv[])

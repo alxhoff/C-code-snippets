@@ -5,10 +5,7 @@
 
 #include "yahtzee.h"
 
-struct die{
-    int max_value;
-    int current_value;
-};
+
 
 struct cup *create_cup( int dice_count )
 {
@@ -25,7 +22,7 @@ struct cup *create_cup( int dice_count )
     ret->dice_count = dice_count;
     
     //Allocates list of empty pointers to die objects
-    ret->dice = calloc( dice_count, sizeof(struct cup *) ); 
+    ret->dice = calloc( dice_count, sizeof(struct cup *) );
 
     printf("Cup created\n");
     

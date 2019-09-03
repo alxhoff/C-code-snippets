@@ -1,6 +1,11 @@
 #ifndef __YAHTZEE_H__
 #define __YAHTZEE_H__
 
+struct die{
+    int max_value;
+    int current_value;
+};
+
 struct cup{
     struct die **dice;
     int dice_count;
