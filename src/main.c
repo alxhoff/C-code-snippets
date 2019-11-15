@@ -1,33 +1,18 @@
 #include <stdio.h>
-
-void d_increment(int val){
-	val++;
-	val++;
-}
-
-void double_increment(int *val) {
-	(*val)++;
-
-	(*val)++;
-}
-
 int main(int argc, char* argv[])
 {
-	int a = 0;
-	int b = 5;
-	int c = 0;
+    char input;
+prompt_again:
+    printf("Enter number:");
+    input = getchar() - '0';
 
-	a++;
+    if ((input >= 1) && (input <= 6)) {
+        // Do whatever it is you need to do
+        getchar(); // clear stdin
+        goto prompt_again;
+    } else
+        goto finish;
 
-	c = a + b;
-
-	c++;
-
-	d_increment(a);
-	double_increment(&a);
-
-    printf("hello world\n");
-
-    printf("My three variables are %d %d %d",
-    		a, b, c);
+finish:
+    printf("Wrong option\n");
 }
