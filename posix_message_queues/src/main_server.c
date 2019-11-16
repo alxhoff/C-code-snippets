@@ -19,10 +19,8 @@ int main(int argc, char *argv[])
 	attr.mq_msgsize = MAX_SIZE; // Max size of message in bytes
 	attr.mq_curmsgs = 0; // Num of messages currently in queue
 
-	mq = mq_open(QUEUE_NAME, O_CREAT | O_WRONLY, 0644, &attr);
+	mq = mq_open(QUEUE_NAME, O_CREAT | O_RDONLY, 0644, &attr);
 	CHECK((mqd_t)-1 != mq);
-
-	printf("Send to server (enter \"exit\" to stop):\n");
 
 	do {
 		ssize_t bytes_read;
