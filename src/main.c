@@ -19,6 +19,10 @@ int main(int argc, char *argv[])
 
 	act.sa_flags = SA_SIGINFO;
 
+	// Set mask to ignore all signals except SIGTSTP during execution of handler
+	sigfillset(&act.sa_mask);
+	sigdelset(&act.sa_mask, SIGTSTP);
+
 	if (sigaction(SIGTSTP, &act, NULL) < 0) {
 		perror("Sigaction");
 		return 1;
