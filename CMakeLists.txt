@@ -6,7 +6,9 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 
 include_directories(include)
 
-file(GLOB SOURCES "src/*.c")
+file(GLOB SERVER_SOURCES "src/server.c")
+file(GLOB CLIENT_SOURCES "src/client.c")
 
-add_executable(bar ${SOURCES})
+add_executable(server ${SERVER_SOURCES})
+add_executable(client ${CLIENT_SOURCES})
 
