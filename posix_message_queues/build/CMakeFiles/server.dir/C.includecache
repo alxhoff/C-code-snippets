@@ -1,0 +1,22 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+../include/common.h
+
+/home/alxhoff/git/GitHub/Empty_C_Project/posix_message_queues/src/main_server.c
+stdio.h
+-
+stdlib.h
+-
+string.h
+-
+mqueue.h
+-
+common.h
+/home/alxhoff/git/GitHub/Empty_C_Project/posix_message_queues/src/common.h
+

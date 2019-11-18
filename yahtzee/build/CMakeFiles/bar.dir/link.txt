@@ -1,0 +1,1 @@
+/usr/bin/cc -g   CMakeFiles/bar.dir/src/main.c.o CMakeFiles/bar.dir/src/yahtzee.c.o  -o ../bin/bar 
