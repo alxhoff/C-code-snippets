@@ -1,3 +1,4 @@
+#define _GNU_SOURCE // F_SETSIG
 #include <errno.h>
 #include <fcntl.h>
 #include <netinet/in.h>
@@ -21,6 +22,7 @@ async_IO_callback_t cb = { 0 };
 
 void signalHandler(int signal, siginfo_t *sig_info, void *sig_context)
 {
+	printf("in handler\n");
 	int xSocket;
 	if (signal ==
 	    SIGIO) { // Should be SIG_IO as this was set in registerSignalHandler
@@ -37,29 +39,35 @@ void signalHandler(int signal, siginfo_t *sig_info, void *sig_context)
 /*
  *  Change the signal handler function for the calling process
  */
-void registerSignalHandler(int file_descriptor, int signals)
+void registerSignalHandler(int file_descriptor)
 {
 	struct sigaction sa;
-	if (!alreadyRegisteredHandler) {
-		sa.sa_sigaction = signalHandler;
-		sa.sa_flags = SA_SIGINFO;
-		sigfillset(&sa.sa_mask);
-		sigdelset(&sa.sa_mask, signals);
+	int file_status;
 
-		// Register signal handler
-		if (sigaction(signals, &sa, NULL))
-			perror("Could not set signal handler");
-		else
-			alreadyRegisteredHandler = 1;
-	}
-
+	/*
+     * Get file status
+     */
+	file_status = fcntl(file_descriptor, F_GETFL);
+	file_status |= O_ASYNC | O_NONBLOCK;
+	// Set file descriptor status flag to show async
+	if (fcntl(file_descriptor, F_SETFL, file_status))
+		fprintf(stderr, "fcntl failed: %d\n", errno);
+	//
+	fcntl(file_descriptor, F_SETSIG, SIGIO);
 	// Make file descriptor generate a signal in current process when an event happens on the file descriptor
 	if (fcntl(file_descriptor, F_SETOWN, getpid()))
 		fprintf(stderr, "fcntl failed: %d\n", errno);
 
-	// Set file descriptor status flag to show async
-	if (fcntl(file_descriptor, F_SETFL, O_ASYNC))
-		fprintf(stderr, "fcntl failed: %d\n", errno);
+	// Signal set to block all signals in the calling thread
+	sigset_t all;
+	sigfillset(&all);
+	sigprocmask(SIG_SETMASK, &all, NULL);
+
+	// Set handler for SIGIO signal
+	sa.sa_sigaction = signalHandler;
+	sa.sa_flags = SA_SIGINFO;
+	if (sigaction(SIGIO, &sa, NULL))
+		perror("Could not set signal handler");
 }
 
 void registerIOCallback(int file_descriptor, void (*callback)(int, void *),
@@ -69,7 +77,7 @@ void registerIOCallback(int file_descriptor, void (*callback)(int, void *),
 	cb.callback = callback;
 	cb.args = args;
 
-	registerSignalHandler(file_descriptor, SIGIO);
+	registerSignalHandler(file_descriptor);
 }
 
 int socketOpenUDP(void (*socket_callback)(int, void *), void *callback_args,
