@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#define STATE_MACHINE_STATE_QUEUE_LENGTH 10
 #define STATE_MACHINE_INTERVAL 10
 
 typedef struct system_state {
@@ -28,6 +29,8 @@ struct state_machine {
 
 	unsigned char _initialized : 1;
 } sm = { 0 };
+
+QueueHandle_t state_queue = NULL;
 
 unsigned int addState(void (*init)(void *), void (*enter)(void *),
 		      void (*run)(void *), void (*exit)(void *), void *data)
@@ -83,6 +86,14 @@ void deleteState(unsigned int ID)
 unsigned char smInit(void)
 {
 	system_state_t *iterator;
+
+	state_queue = xQueueCreate(STATE_MACHINE_STATE_QUEUE_LENGTH,
+				   sizeof(unsigned int));
+
+	if (!state_queue) {
+		fprintf(stderr, "State queue creation failed\n");
+		exit(EXIT_FAILURE);
+	}
 
 	for (iterator = &sm.head; iterator->next; iterator = iterator->next)
 		if (iterator->init)
