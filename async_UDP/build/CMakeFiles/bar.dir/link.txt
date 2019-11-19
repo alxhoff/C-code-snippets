@@ -1,1 +1,0 @@
-/usr/bin/cc -g   CMakeFiles/bar.dir/src/main.c.o  -o ../bin/bar 

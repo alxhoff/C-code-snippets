@@ -1,7 +1,0 @@
-[
-{
-  "directory": "/home/alxhoff/git/GitHub/Empty_C_Project/linked_list/build",
-  "command": "/usr/bin/cc  -I/home/alxhoff/git/GitHub/Empty_C_Project/linked_list/include  -g   -o CMakeFiles/bar.dir/src/main.c.o   -c /home/alxhoff/git/GitHub/Empty_C_Project/linked_list/src/main.c",
-  "file": "/home/alxhoff/git/GitHub/Empty_C_Project/linked_list/src/main.c"
-}
-]
