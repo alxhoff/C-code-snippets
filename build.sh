@@ -7,6 +7,7 @@ for D in *; do
         echo "In directory $(pwd)"
         if test -f ".dontbuild"; then
             echo "${D} marked to not be built, SKIPPING"
+            popd
             continue
         fi
         mkdir -p build
