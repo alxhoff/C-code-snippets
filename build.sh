@@ -3,14 +3,18 @@
 for D in *; do
     if [ -d "${D}" ]; then
         echo "Building ${D}"
-        cd ${D}
+        pushd ${D}
+        echo "In directory $(pwd)"
         if test -f ".dontbuild"; then
+            echo "${D} marked to not be built, SKIPPING"
             continue
         fi
         mkdir -p build
-        cmake -B build
-        make -C build
-        cd ..
+        pushd build
+        cmake ..
+        make
+        popd
+        popd
     fi
 done
 
