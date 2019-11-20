@@ -11,7 +11,7 @@ char *anybase(int n, int b)
 	int len;
 
 	if (n == 0)
-		return strcpy(s, "");
+		return s;
 
 	s = anybase(n / b, b);
 
