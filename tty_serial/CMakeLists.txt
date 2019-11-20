@@ -11,3 +11,5 @@ file(GLOB SOURCES "src/*.c")
 
 add_executable(bar ${SOURCES})
 
+target_link_libraries(bar explain)
+

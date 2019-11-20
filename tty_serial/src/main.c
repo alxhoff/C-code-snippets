@@ -1,5 +1,6 @@
 #define _GNU_SOURCE
 
+#include <libexplain/tcgetattr.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -16,6 +17,8 @@ static void serial_handler(int sig, siginfo_t *siginfo, void *context)
 {
 	ssize_t read_len;
 	unsigned char recv;
+
+	printf("in handler\n");
 
 	read_len = read(siginfo->si_fd, &recv, 1);
 	if (read_len == 1)
@@ -44,6 +47,8 @@ int main(int argc, char *argv[])
 
 	if (tcgetattr(serial_fd, &termSettings) < 0) {
 		perror("Getting terminal attributes failed");
+		printf("Error reason: %s\n",
+		       explain_tcgetattr(serial_fd, &termSettings));
 		goto error;
 	}
 
