@@ -69,7 +69,7 @@ void deleteState(unsigned int ID)
 	     iterator = iterator->next)
 		;
 
-	if (iterator->next) {
+	if (iterator->next)
 		if (iterator->next->_ID) {
 			delete = iterator->next;
 
@@ -80,7 +80,6 @@ void deleteState(unsigned int ID)
 
 			free(delete);
 		}
-	}
 }
 
 unsigned char smInit(void)
