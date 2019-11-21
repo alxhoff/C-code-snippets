@@ -2,29 +2,24 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define BUFFER_SIZE 100
+#define BUFFER_SIZE 200
 const char *selection = "0123456789ABCEDFGHIGKLMNOPQRSTUVWXYZ";
 
-char *anybase(int n, int b)
+void anybase(int n, int b, char *s)
 {
-	char *s = calloc(BUFFER_SIZE, sizeof(char));
-	int len;
+	if (n) {
+		anybase(n / b, b, s);
 
-	if (n == 0)
-		return s;
-
-	s = anybase(n / b, b);
-
-	len = strlen(s);
-	strncat(&s[len], &selection[n % b], sizeof(char));
-	printf("%s, %d, %d\n", s, n, b);
-
-	return s;
+		strncat(&s[strlen(s)], &selection[n % b], sizeof(char));
+		printf("%s, %d, %d\n", s, n, b);
+	}
 }
+
 int main()
 {
-	char *s;
+	char buf[BUFFER_SIZE];
+	memset(buf, 0, sizeof(char) * BUFFER_SIZE);
 
-	s = anybase(900000, 18);
-	printf("Ouput: %s, N: %d, B: %d\n", s, 90000, 18);
+	anybase(900000, 18, buf);
+	printf("Ouput: %s, N: %d, B: %d\n", buf, 90000, 18);
 }
