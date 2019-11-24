@@ -1,8 +1,12 @@
+
+#define _POSIX_C_SOURCE 199309L
+
 #include <stdio.h>
+#include <unistd.h>
 #include <stdlib.h>
-#include <string.h>
 #include <signal.h>
 #include <mqueue.h>
+#include <string.h>
 
 #include "common.h"
 
@@ -31,7 +35,7 @@ void sigHandler(int signal, siginfo_t *info, void *context)
 	char buffer[MAX_SIZE + 1];
 	int must_stop = 0;
 	ssize_t bytes_read;
-	mq_info_t *mq_i = (mq_info_t *)info->si_value.sival_ptr;
+	mq_info_t *mq_i = (mq_info_t *)(info->si_value.sival_ptr);
 	mqd_t mq = mq_i->fd;
 
 	printf("In handler\n");
@@ -66,6 +70,7 @@ int openMessageQueue(char *name, long max_msg_num, long max_msg_size)
 	/** Setup handler for SIGIO */
 	sa.sa_flags = SA_SIGINFO;
 	sa.sa_sigaction = sigHandler;
+	printf("Sighandler: %p\n", sigHandler);
 	sigfillset(&sa.sa_mask);
 	sigdelset(&sa.sa_mask, SIGIO);
 	if (sigaction(SIGIO, &sa, NULL))
@@ -75,6 +80,7 @@ int openMessageQueue(char *name, long max_msg_num, long max_msg_size)
 
 	/** Set up process to be informed about async queue event */
 	ev.sigev_notify = SIGEV_SIGNAL; // Specify a signal should be sen
+	ev.sigev_signo = SIGIO; // Signal of interest
 	ev.sigev_value =
 		sv; // Suplementary data passed to signal handling fuction
 	ev.sigev_notify_function = NULL; // Used by SIGEV_THREAD
@@ -82,7 +88,7 @@ int openMessageQueue(char *name, long max_msg_num, long max_msg_size)
 
 	/** Register this process to receive async notifications when a new message  */
 	/**     arrives on the specified message queue  */
-	if (mq_notify(mq_i->fd, &ev)) {
+	if (mq_notify(mq_i->fd, &ev) < 0) {
 		perror("notify failed");
 		goto error;
 	}
