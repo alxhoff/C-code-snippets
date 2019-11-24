@@ -55,7 +55,7 @@ int openMessageQueue(char *name, long max_msg_num, long max_msg_size)
 	struct mq_attr attr;
 	struct sigaction sa;
 	struct sigevent ev;
-	union sigval sv = { .sival_ptr = &mq_i };
+	union sigval sv = { .sival_ptr = mq_i };
 
 	attr.mq_flags = O_NONBLOCK; // Async
 	attr.mq_maxmsg = max_msg_num;
