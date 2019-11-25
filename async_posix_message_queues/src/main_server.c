@@ -27,6 +27,7 @@
 
 typedef struct mq_info {
 	mqd_t fd;
+	char *name;
 } mq_info_t;
 
 /** Handler for receiving async messages */
@@ -40,6 +41,14 @@ void sigHandler(int signal, siginfo_t *info, void *context)
 
 	printf("In handler\n");
 
+	if (signal == SIGINT) {
+		printf("Closing queue\n");
+		/** Close message queue  */
+		mq_close(mq);
+		/** Remove message queue */
+		mq_unlink(mq_i->name);
+	}
+
 	do {
 		bytes_read = mq_receive(mq, buffer, MAX_SIZE, NULL);
 
@@ -52,6 +61,11 @@ void sigHandler(int signal, siginfo_t *info, void *context)
 int openMessageQueue(char *name, long max_msg_num, long max_msg_size)
 {
 	mq_info_t *mq_i = calloc(1, sizeof(mq_info_t));
+	mq_i->name = malloc(sizeof(char) * (strlen(name) + 1));
+	if (mq_i->name)
+		strcpy(mq_i->name, name);
+	else
+		exit(-1);
 	struct mq_attr attr;
 	struct sigaction sa;
 	struct sigevent ev;
@@ -72,15 +86,15 @@ int openMessageQueue(char *name, long max_msg_num, long max_msg_size)
 	sa.sa_sigaction = sigHandler;
 	printf("Sighandler: %p\n", sigHandler);
 	sigfillset(&sa.sa_mask);
-	sigdelset(&sa.sa_mask, SIGIO);
-	if (sigaction(SIGIO, &sa, NULL))
+	sigdelset(&sa.sa_mask, SIGIO | SIGINT);
+	if (sigaction(SIGIO | SIGINT, &sa, NULL))
 		goto error;
 
 	printf("sigaction done\n");
 
 	/** Set up process to be informed about async queue event */
 	ev.sigev_notify = SIGEV_SIGNAL; // Specify a signal should be sen
-	ev.sigev_signo = SIGIO; // Signal of interest
+	ev.sigev_signo = SIGIO | SIGINT; // Signal of interest
 	ev.sigev_value =
 		sv; // Suplementary data passed to signal handling fuction
 	ev.sigev_notify_function = NULL; // Used by SIGEV_THREAD
