@@ -1,7 +1,7 @@
 #ifndef __COMMON_H__
 #define __COMMON_H__
 
-#define QUEUE_NAME "/async_test_queue25"
+#define QUEUE_NAME "/async_test_queue4"
 #define MAX_SIZE 1024
 #define MSG_STOP "exit"
 
