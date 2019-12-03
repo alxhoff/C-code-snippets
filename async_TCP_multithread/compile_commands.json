@@ -1,0 +1,7 @@
+[
+{
+  "directory": "/home/alxhoff/git/GitHub/Empty_C_Project/async_TCP_multithread",
+  "command": "/usr/bin/cc  -I/home/alxhoff/git/GitHub/Empty_C_Project/async_TCP_multithread/include  -g   -o CMakeFiles/bar.dir/src/main.c.o   -c /home/alxhoff/git/GitHub/Empty_C_Project/async_TCP_multithread/src/main.c",
+  "file": "/home/alxhoff/git/GitHub/Empty_C_Project/async_TCP_multithread/src/main.c"
+}
+]
