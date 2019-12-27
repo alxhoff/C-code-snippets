@@ -128,6 +128,8 @@ int main(int argc, char *argv[])
 	int socket_fd;
 	struct sockaddr_in sa = { 0 };
 
+	printf("Use 'netcat -vv localhost 3333 -u' to test\n");
+
 	/** Set socket address */
 	sa.sin_family = AF_INET;
 	sa.sin_addr.s_addr = INADDR_ANY;
