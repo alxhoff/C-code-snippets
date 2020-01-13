@@ -77,6 +77,8 @@ aIO_t head = { .type = NONE, .lock = PTHREAD_MUTEX_INITIALIZER };
 pthread_cond_t aIO_quit_conn = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t aIO_quit_lock = PTHREAD_MUTEX_INITIALIZER;
 
+static int finished = 0;
+
 aIO_t *getLastConnection(void)
 {
 	aIO_t *iterator;
@@ -121,12 +123,36 @@ static aIO_t *findConnection(aIO_conn_e type, void *arg)
 	return NULL;
 }
 
-void aIODeinit(void)
+void aIODeinit(int sig)
 {
+    aIO_t *iterator, *del;
+    finished = 1;
+
 	printf("Stopping listener threads\n");
     pthread_mutex_lock(&aIO_quit_lock);
 	pthread_cond_broadcast(&aIO_quit_conn);
+    printf("Quit broadcast sent\n");
     pthread_mutex_unlock(&aIO_quit_lock);
+
+    if(head.next)
+        for(iterator=head.next; iterator;){
+            del = iterator;
+            iterator= iterator->next;
+            switch(del->type){
+            case UDP:
+            case TCP:
+                printf("Deinit socket %d\n", ntohs(del->attr.socket.addr.sin_port));
+                free(del->buffer);
+                CHECK(!close(del->attr.socket.fd));
+                CHECK(!pthread_cancel(del->thread));
+                free(del);
+                break;
+            default:
+                break;
+            }
+        }
+
+    exit(EXIT_SUCCESS);
 }
 
 aIO_t *createAsyncIO(aIO_conn_e type, ssize_t buffer_size,
@@ -176,16 +202,18 @@ static void aIOUDPSigHandler(int signal, siginfo_t *info, void *context)
 void *aIOOpenUDPSocketThread(void *s_udp_fd)
 {
 	int fd = *(int *)s_udp_fd;
-	printf("Creating UDP thread\n");
-	CHECK(-1 != fcntl(fd, F_SETOWN, getpid()));
+	printf("Created UDP thread with PID: %d\n", gettid());
+	CHECK(-1 != fcntl(fd, F_SETOWN, gettid()));
 
     pthread_mutex_lock(&aIO_quit_lock);
-    while(1)
+    while(!finished){
+        printf("UDP listener on fd %d waiting\n", fd);
         pthread_cond_wait(&aIO_quit_conn, &aIO_quit_lock);
+    }
     printf("Closing UDP thread\n");
     pthread_mutex_unlock(&aIO_quit_lock);
 
-	return NULL;
+    pthread_exit(NULL);
 }
 
 aIO_handle_t aIOOpenUDPSocket(char *s_addr, in_port_t port, ssize_t buffer_size,
@@ -220,13 +248,14 @@ aIO_handle_t aIOOpenUDPSocket(char *s_addr, in_port_t port, ssize_t buffer_size,
 	fs |= O_ASYNC | O_NONBLOCK;
 	CHECK(-1 != fcntl(s_udp->fd, F_SETFL, fs));
 	fcntl(s_udp->fd, F_SETSIG, SIGIO);
-	/** CHECK(-1 != fcntl(s_udp->fd, F_SETOWN, getpid())); */
 
     CHECK(!bind(s_udp->fd, (struct sockaddr *)&s_udp->addr,
             sizeof(s_udp->addr)));
 
     CHECK(!pthread_create(&conn->next->thread, NULL, aIOOpenUDPSocketThread,
                   (void *)&conn->next->attr.socket.fd));
+
+    printf("Thread handle @ -> %p\n", &conn->next->thread);
 
 	pthread_mutex_unlock(&conn->next->lock);
 
@@ -240,16 +269,17 @@ void UDPHandler(ssize_t read_size, char *buffer, void *args)
 
 int main (void){
 
-
+    struct sigaction sa = {0};
 	char *addr = NULL; // Loopback
 	in_port_t port = 1111;
 
-    atexit(aIODeinit);
+    sa.sa_handler = aIODeinit;
+    CHECK(!sigaction(SIGQUIT, &sa, 0));
 
 	aIO_handle_t soc =
 		aIOOpenUDPSocket(addr, port, UDP_BUFFER_SIZE, UDPHandler, NULL);
 
-	printf("UDP socket opened\n");
+	printf("UDP socket opened on port %d\n", port);
 	printf("Demo UDP Socket can be tested using\n");
 	printf("*** netcat -vv localhost %d -u ***\n", port);
 
@@ -258,7 +288,7 @@ int main (void){
 	aIO_handle_t soc_two =
 		aIOOpenUDPSocket(addr, port, UDP_BUFFER_SIZE, UDPHandler, NULL);
 
-	printf("UDP socket opened\n");
+	printf("UDP socket opened on port %d\n", port);
 	printf("Demo UDP Socket can be tested using\n");
 	printf("*** netcat -vv localhost %d -u ***\n", port);
 
