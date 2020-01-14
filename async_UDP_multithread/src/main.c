@@ -38,7 +38,7 @@ typedef struct {
 } aIO_socket_t;
 
 typedef struct {
-    //TODO
+	//TODO
 } aIO_mq_t;
 
 typedef struct {
@@ -58,7 +58,7 @@ typedef struct aIO {
 	ssize_t buffer_size;
 	char *buffer;
 
-	pthread_t thread;
+	/** pthread_t thread; */
 
 	void (*callback)(ssize_t, char *, void *);
 	void *args;
@@ -76,8 +76,6 @@ typedef struct async_IO_callback {
 aIO_t head = { .type = NONE, .lock = PTHREAD_MUTEX_INITIALIZER };
 pthread_cond_t aIO_quit_conn = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t aIO_quit_lock = PTHREAD_MUTEX_INITIALIZER;
-
-static int finished = 0;
 
 aIO_t *getLastConnection(void)
 {
@@ -105,7 +103,7 @@ static aIO_t *findConnection(aIO_conn_e type, void *arg)
 					pthread_mutex_unlock(&curr->lock);
 					return curr;
 				}
-            break;
+			break;
 		case MSG_QUEUE:
 			//TODO
 			return NULL;
@@ -125,34 +123,28 @@ static aIO_t *findConnection(aIO_conn_e type, void *arg)
 
 void aIODeinit(int sig)
 {
-    aIO_t *iterator, *del;
-    finished = 1;
+	aIO_t *iterator, *del;
 
-	printf("Stopping listener threads\n");
-    pthread_mutex_lock(&aIO_quit_lock);
-	pthread_cond_broadcast(&aIO_quit_conn);
-    printf("Quit broadcast sent\n");
-    pthread_mutex_unlock(&aIO_quit_lock);
+	if (head.next)
+		for (iterator = head.next; iterator;) {
+			del = iterator;
+			iterator = iterator->next;
+			switch (del->type) {
+			case UDP:
+			case TCP:
+				printf("Deinit socket %d\n",
+				       ntohs(del->attr.socket.addr.sin_port));
+				free(del->buffer);
+				CHECK(!close(del->attr.socket.fd));
+				/** CHECK(!pthread_cancel(del->thread)); */
+				free(del);
+				break;
+			default:
+				break;
+			}
+		}
 
-    if(head.next)
-        for(iterator=head.next; iterator;){
-            del = iterator;
-            iterator= iterator->next;
-            switch(del->type){
-            case UDP:
-            case TCP:
-                printf("Deinit socket %d\n", ntohs(del->attr.socket.addr.sin_port));
-                free(del->buffer);
-                CHECK(!close(del->attr.socket.fd));
-                CHECK(!pthread_cancel(del->thread));
-                free(del);
-                break;
-            default:
-                break;
-            }
-        }
-
-    exit(EXIT_SUCCESS);
+	exit(EXIT_SUCCESS);
 }
 
 aIO_t *createAsyncIO(aIO_conn_e type, ssize_t buffer_size,
@@ -180,8 +172,9 @@ static void aIOUDPSigHandler(int signal, siginfo_t *info, void *context)
 	ssize_t read_size;
 	int server_fd = info->si_fd;
 	aIO_t *conn = findConnection(UDP, &server_fd);
-	
-    printf("In UDP handler for port %d\n", ntohs(conn->attr.socket.addr.sin_port));
+
+	printf("In UDP handler for port %d, running in proc %d\n",
+	       ntohs(conn->attr.socket.addr.sin_port), getpid());
 
 	CHECK(conn);
 
@@ -197,23 +190,6 @@ static void aIOUDPSigHandler(int signal, siginfo_t *info, void *context)
 	}
 
 	pthread_mutex_unlock(&conn->lock);
-}
-
-void *aIOOpenUDPSocketThread(void *s_udp_fd)
-{
-	int fd = *(int *)s_udp_fd;
-	printf("Created UDP thread with PID: %d\n", gettid());
-	CHECK(-1 != fcntl(fd, F_SETOWN, gettid()));
-
-    pthread_mutex_lock(&aIO_quit_lock);
-    while(!finished){
-        printf("UDP listener on fd %d waiting\n", fd);
-        pthread_cond_wait(&aIO_quit_conn, &aIO_quit_lock);
-    }
-    printf("Closing UDP thread\n");
-    pthread_mutex_unlock(&aIO_quit_lock);
-
-    pthread_exit(NULL);
 }
 
 aIO_handle_t aIOOpenUDPSocket(char *s_addr, in_port_t port, ssize_t buffer_size,
@@ -249,44 +225,45 @@ aIO_handle_t aIOOpenUDPSocket(char *s_addr, in_port_t port, ssize_t buffer_size,
 	CHECK(-1 != fcntl(s_udp->fd, F_SETFL, fs));
 	fcntl(s_udp->fd, F_SETSIG, SIGIO);
 
-    CHECK(!bind(s_udp->fd, (struct sockaddr *)&s_udp->addr,
-            sizeof(s_udp->addr)));
-
-    CHECK(!pthread_create(&conn->next->thread, NULL, aIOOpenUDPSocketThread,
-                  (void *)&conn->next->attr.socket.fd));
-
-    printf("Thread handle @ -> %p\n", &conn->next->thread);
+	CHECK(!bind(s_udp->fd, (struct sockaddr *)&s_udp->addr,
+		    sizeof(s_udp->addr)));
+	CHECK(-1 != fcntl(s_udp->fd, F_SETOWN, gettid()));
 
 	pthread_mutex_unlock(&conn->next->lock);
 
 	return (aIO_handle_t)conn->next;
 }
 
-void UDPHandler(ssize_t read_size, char *buffer, void *args)
+void UDPHandlerOne(ssize_t read_size, char *buffer, void *args)
 {
-	printf("UDP Recv %ld : %s\n", read_size, buffer);
+	printf("UDP Recv in one %ld : %s\n", read_size, buffer);
 }
 
-int main (void){
+void UDPHandlerTwo(ssize_t read_size, char *buffer, void *args)
+{
+	printf("UDP Recv in two %ld : %s\n", read_size, buffer);
+}
 
-    struct sigaction sa = {0};
+int main(void)
+{
+	struct sigaction sa = { 0 };
 	char *addr = NULL; // Loopback
 	in_port_t port = 1111;
 
-    sa.sa_handler = aIODeinit;
-    CHECK(!sigaction(SIGQUIT, &sa, 0));
+	sa.sa_handler = aIODeinit;
+	CHECK(!sigaction(SIGQUIT, &sa, 0));
 
-	aIO_handle_t soc =
-		aIOOpenUDPSocket(addr, port, UDP_BUFFER_SIZE, UDPHandler, NULL);
+	aIO_handle_t soc = aIOOpenUDPSocket(addr, port, UDP_BUFFER_SIZE,
+					    UDPHandlerOne, NULL);
 
 	printf("UDP socket opened on port %d\n", port);
 	printf("Demo UDP Socket can be tested using\n");
 	printf("*** netcat -vv localhost %d -u ***\n", port);
 
-    port = 2222;
+	port = 2222;
 
-	aIO_handle_t soc_two =
-		aIOOpenUDPSocket(addr, port, UDP_BUFFER_SIZE, UDPHandler, NULL);
+	aIO_handle_t soc_two = aIOOpenUDPSocket(addr, port, UDP_BUFFER_SIZE,
+						UDPHandlerTwo, NULL);
 
 	printf("UDP socket opened on port %d\n", port);
 	printf("Demo UDP Socket can be tested using\n");
@@ -294,6 +271,6 @@ int main (void){
 
 	while (1) {
 		printf("UDP tick\n");
-        sleep(1);
+		sleep(1);
 	}
 }
