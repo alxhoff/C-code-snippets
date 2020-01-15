@@ -227,7 +227,7 @@ aIO_handle_t aIOOpenUDPSocket(char *s_addr, in_port_t port, ssize_t buffer_size,
 
 	CHECK(!bind(s_udp->fd, (struct sockaddr *)&s_udp->addr,
 		    sizeof(s_udp->addr)));
-	CHECK(-1 != fcntl(s_udp->fd, F_SETOWN, gettid()));
+	CHECK(-1 != fcntl(s_udp->fd, F_SETOWN, getpid()));
 
 	pthread_mutex_unlock(&conn->next->lock);
 
