@@ -1,6 +1,7 @@
 
-#define _POSIX_C_SOURCE 199309L
+#define _GNU_SOURCE
 
+#include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -105,7 +106,7 @@ int openMessageQueue(char *name, long max_msg_num, long max_msg_size)
 	/** set pointer to MQ strct to be sent to handler */
 	sv.sival_ptr = iterator->next;
 
-	/** attr.mq_flags = O_NONBLOCK; // Async */
+	/** Attributes of MQ needed for opening MQ */
 	attr.mq_maxmsg = max_msg_num;
 	attr.mq_msgsize = max_msg_size;
 	attr.mq_curmsgs = 0; // Num of messages currently in queue
@@ -124,12 +125,19 @@ int openMessageQueue(char *name, long max_msg_num, long max_msg_size)
 	sigdelset(&sa.sa_mask, SIGIO);
 	if (sigaction(SIGIO, &sa, NULL))
 		goto error;
+    CHECK(-1 != fcntl(iterator->next->fd, F_SETOWN, getpid()));
+    printf("Owner set\n");
 
 	printf("sigaction done\n");
 
 	/** Set up process to be informed about async queue event */
-	iterator->next->ev.sigev_notify =
-		SIGEV_SIGNAL; // Specify a signal should be sen
+	/** If signal handler was registered up using the SA_SIGINFO sigaction flag then  */
+	/**     si_value in the siginfo_t struct (passed to handler) is set to the value  */
+	/**     of sigev_value. sigev_value is of type sigval which contains sival_ptr, */
+	/**     a void pointer than can be set. This pointer is used to pass in a pointer  */
+	/**     to the struct containing the message queues properties, including the  */
+	/**     required mqd_t. */
+	iterator->next->ev.sigev_notify = SIGEV_SIGNAL;
 	iterator->next->ev.sigev_signo = SIGIO; // Signal of interest
 	iterator->next->ev.sigev_value =
 		sv; // Suplementary data passed to signal handling fuction
@@ -158,12 +166,10 @@ void initMsgQueues(void)
 	struct sigaction sa;
 
 	sa.sa_handler = closeMsgQueues;
-	/** sa.sa_flags = 0; */
-	/** sigemptyset(&sa.sa_mask); */
 	sigaction(SIGINT, &sa, NULL);
 }
 
-int main(int argc, char *argv[])
+int main(void)
 {
 	initMsgQueues();
 	openMessageQueue(QUEUE_NAME, 10, MAX_SIZE);
