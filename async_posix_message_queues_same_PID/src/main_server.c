@@ -70,20 +70,10 @@ void closeMsgQueues(int signal)
 }
 
 /** Handler for receiving async messages */
-void sigHandler(int signal, siginfo_t *info, void *context)
+void sigHandler(union sigval sv)
 {
-	sigset_t sigs;
-	sigemptyset(&sigs);
-	pthread_sigmask(0, NULL, &sigs);
-	if (sigismember(&sigs, SIGIO)) {
-		printf("SIGIO being blocked in handler\n");
-		sigaddset(&sigs, SIGIO);
-		pthread_sigmask(SIG_UNBLOCK, &sigs, NULL);
-	}
-
 	ssize_t bytes_read;
-	mq_info_t *mq_i = (mq_info_t *)(info->si_value.sival_ptr);
-	printf("Info @ %p\n", mq_i);
+	mq_info_t *mq_i = (mq_info_t *)(sv.sival_ptr);
 	mqd_t mq = mq_i->fd;
 
 	bytes_read = mq_receive(mq, mq_i->buffer, MAX_SIZE, NULL);
@@ -112,7 +102,6 @@ int openMessageQueue(char *name, long max_msg_num, long max_msg_size,
 
 	conn = iterator->next = calloc(1, sizeof(mq_info_t));
 	assert(conn);
-	printf("Create conn for %s @ %p\n", name, conn);
 	conn->name = malloc(sizeof(char) * (strlen(name) + 2));
 	assert(conn->name);
 	conn->buffer = calloc(MAX_SIZE + 1, sizeof(char));
@@ -134,27 +123,7 @@ int openMessageQueue(char *name, long max_msg_num, long max_msg_size,
 
 	assert((conn->fd = mq_open(conn->name, O_CREAT | O_RDONLY | O_NONBLOCK,
 				   0644, &attr)));
-
-	/** Setup handler for SIGIO */
-	/** sigaction(2) specifies that the triggering signal is blocked in the handler  */
-	/**     unless SA_NODEFER is specified */
-    sa.sa_flags = SA_SIGINFO | SA_RESTART | SA_NODEFER; 
-	sa.sa_sigaction = sigHandler;
-	/** sa_mask specifies signals that will be blocked in the thread the signal  */
-	/**     handler executes in */
-	sigfillset(&sa.sa_mask);
-	sigdelset(&sa.sa_mask, SIGIO);
-	if (sigaction(SIGIO, &sa, NULL)) {
-		printf("Sigaction failed\n");
-		goto error;
-	}
-
-	printf("Handler set in PID: %d for TID: %d\n", getpid(), gettid());
-
-	/** fcntl(2) - FN_SETOWN_EX is used to target SIGIO and SIGURG signals to a  */
-	/**     particular thread */
-	struct f_owner_ex cur_tid = { .type = F_OWNER_TID, .pid = gettid() };
-	assert(-1 != fcntl(conn->fd, F_SETOWN_EX, &cur_tid));
+    printf("Opened MQ %s:%d\n", conn->name, conn->fd);
 
 	/** Set up process to be informed about async queue event */
 	/** If signal handler was registered up using the SA_SIGINFO sigaction flag then  */
@@ -163,11 +132,11 @@ int openMessageQueue(char *name, long max_msg_num, long max_msg_size,
 	/**     a void pointer than can be set. This pointer is used to pass in a pointer  */
 	/**     to the struct containing the message queues properties, including the  */
 	/**     required mqd_t. */
-	conn->ev.sigev_notify = SIGEV_SIGNAL;
+	conn->ev.sigev_notify = SIGEV_THREAD;
 	conn->ev.sigev_signo = SIGIO; // Signal of interest
 	conn->ev.sigev_value =
 		sv; // Suplementary data passed to signal handling fuction
-	conn->ev.sigev_notify_function = NULL; // Used by SIGEV_THREAD
+	conn->ev.sigev_notify_function = sigHandler; // Used by SIGEV_THREAD
 	conn->ev.sigev_notify_attributes = NULL; // Used by SIGEV_THREAD
 
 	/** Register this process to receive async notifications when a new message  */
@@ -176,8 +145,6 @@ int openMessageQueue(char *name, long max_msg_num, long max_msg_size,
 		perror("notify failed");
 		goto error;
 	}
-
-	printf("Opened queue '%s'\n", conn->name);
 
 	return 0;
 
@@ -227,7 +194,7 @@ void *sender(void *args)
 	while (1) {
 		printf("**** TICK ****\n");
 		messageQueuePut(QUEUE_NAME_ONE, "Hello MQ one");
-		messageQueuePut(QUEUE_NAME_TWO, "Hello MQ two");
+        messageQueuePut(QUEUE_NAME_TWO, "Hello MQ two");
 		sleep(1);
 	}
 }
@@ -252,8 +219,8 @@ int main(void)
 
 	assert(!openMessageQueue(QUEUE_NAME_ONE, 10, MAX_SIZE, MQCallbackOne,
 				 NULL));
-	assert(!openMessageQueue(QUEUE_NAME_TWO, 10, MAX_SIZE, MQCallbackTwo,
-				 NULL));
+    assert(!openMessageQueue(QUEUE_NAME_TWO, 10, MAX_SIZE, MQCallbackTwo,
+                 NULL));
 
 	assert(!pthread_create(&p_sender, NULL, sender, NULL));
 
