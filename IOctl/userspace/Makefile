@@ -1,7 +1,7 @@
 CLANG = $(shell man clang 2>/dev/null)
 
-CC_android ?= arm-linux-androideabi-gcc
-CXX_android ?= arm-linux-androideabi-g++
+CC_android ?= arm-linux-gnueabi-gcc
+CXX_android ?= arm-linux-gnueabi-g++
 
 GCC_VERSIONGT4 := $(shell expr `gcc -dumpversion | cut -f1 -d.` \> 4)
 ANDROIDCC_VERSIONGT4 := $(shell expr `$(CC_android) -dumpversion | cut -f1 -d.` \> 4)
