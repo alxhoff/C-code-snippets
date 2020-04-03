@@ -167,6 +167,7 @@ int main(int argc, char *argv[])
 {
 	initMsgQueues();
 	openMessageQueue(QUEUE_NAME, 10, MAX_SIZE);
+	openMessageQueue(QUEUE_NAME_TWO, 10, MAX_SIZE);
 
 	while (1) {
 		printf("waiting...\n");
