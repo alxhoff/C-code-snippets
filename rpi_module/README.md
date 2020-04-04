@@ -166,6 +166,10 @@ sudo cp arch/arm/boot/zImage /mnt/rpi_boot/$KERNEL.img
 sudo cp arch/arm/boot/dts/*.dtb /mnt/rpi_boot/
 sudo cp arch/arm/boot/dts/overlays/*.dtb /mnt/rpi_boot/overlays
 ```
+
+similarly you can copy the kernel over to have a different file name, allowing you to have multiple kernels on your deivce.
+You will just need to specify in `/boot/config.txt`, by adding a line like `kernel=my_kernel.img`.
+
 ### Modules
 
 Modules need to be installed from the kernel build directory, find using `find . -name "*.ko"`, to the modules directory on the root partition of the SD card, specifically `/lib/modules/${KERNEL_VERSION}`.
@@ -198,6 +202,8 @@ sudo umount /mnt/rpi_root
 
 plug it in and boot up.
 
+The first boot you will need to run `sudo depmod -a` and then reboot for your modules to be there. 
+
 # Building a kernel module
 
 Now you can either put your module into the kernel source and perform an "in-tree" build where you compile the entire kernel (slow, but important if the current kernel version differs).
@@ -228,3 +234,16 @@ Then you just need to copy the module onto the RPi. Inspiration can be found [he
 Modules are found in `/lib/modules/${KERNEL_VERSION}/`
 Make sure to `depmod` so your system indexes the new module.
 
+# Running kernel module
+
+To load the kernel module use
+
+```
+sudo insmod ${MODULE_NAME}
+```
+
+and to then remove it with
+
+```
+sudo rmmod ${MODULE_NAME}
+```
