@@ -49,17 +49,59 @@ KERNEL=kernel
 Then we can just invoke make, specifying the architecture (arm), the cross compiler and the config appropriate for our SoC.
 If you exported the toolchain to your path you should be fine just passing in `CROSS_COMPILE=arm-linux-gnueabihf` but I have a lot of toolchains on my system and prefer to manually pass in the CC to the make command with an absolute path.
 
+Note that the config for a given distro can also be pulled from `/proc/config.gz` using `zcat`.
+This might be a safer option to guarentee that the kernel you build has the same configuration as the kernel you're currently running.
+In more modern kernels, config.gz is no longer present by default and can be created by loading the module `configs`.
+Once there we can copy it somewhere where we can pull it off the SD card, you could also pull it via `scp`.
+
+```
+sudo modprobe configs
+sudo cp /proc/config.gz /
+#or
+scp pi@${RPI_IP}:/proc/config.gz .
+```
+
+To mount the SD card and get access to `/proc` see below in where I talk about mounting the root filesystem.
+
+```
+zcat /proc/config.gz > .config
+```
+
+If you have a modern that needed the kernel module `configs` to be loaded then you should run zcat on that file and move the generated `.config` into the RPi kernel source folder. 
+
+Using the mount described below this would be the following if you copied the config to the root folder.
+
+```
+zcat /mnt/rpi_root/config.gz > .config
+```
+
+Now back to building, to build the default config use one of the following
+
 If you export toolchain to path:
+
 ```
 make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- bcmrpi_defconfig
 ```
- or like me
 
- ```
- make ARCH=arm CROSS_COMPILE=~/tools/arm-bcm2708/arm-linux-gnueabihf/bin/arm-linux-gnueabihf- bcmrpi_defconfig
- ```
+or like me
 
- Now the kernel should of generated the required `.config`. If it complains in the next step that the `.config` is missing then you forgot to specify the architecture (`ARCH`).
+```
+make ARCH=arm CROSS_COMPILE=~/tools/arm-bcm2708/arm-linux-gnueabihf/bin/arm-linux-gnueabihf- bcmrpi_defconfig
+```
+
+Or to use the `.config` from your existing install,
+
+```
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- menuconfig
+```
+
+or like me
+
+```
+make ARCH=arm CROSS_COMPILE=~/tools/arm-bcm2708/arm-linux-gnueabihf/bin/arm-linux-gnueabihf- menuconfig
+```
+
+Now the kernel should of generated the required `.config`. If it complains in the next step that the `.config` is missing then you forgot to specify the architecture (`ARCH`).
 
 ### Build
 
@@ -77,7 +119,11 @@ make ARCH=arm CROSS_COMPILE=~/tools/arm-bcm2708/arm-linux-gnueabihf/bin/arm-linu
 
 This could take a while.
 
+If you want to use `make install` to install your kernell 
+
 ## Installing
+
+### Kernel
 
 Now the first time we will need to install the entire kernel.
 
@@ -107,7 +153,9 @@ Create a directory to mount to and mount the `/boot` partition.
 
 ```
 sudo mkdir /mnt/rpi_boot
+sudo mkdir /mnt/rpi_root
 sudo mount /dev/sdc1 /mnt/rpi_boot
+sudo mount /dev/sdc2 /mnt/rpi_root
 ```
 
 Now we can copy our kernel over, the kernel binary is called `zImage` and this needs to be copied over and names after our `$KERNEL` variable, set before.
@@ -118,10 +166,34 @@ sudo cp arch/arm/boot/zImage /mnt/rpi_boot/$KERNEL.img
 sudo cp arch/arm/boot/dts/*.dtb /mnt/rpi_boot/
 sudo cp arch/arm/boot/dts/overlays/*.dtb /mnt/rpi_boot/overlays
 ```
-Unmount the sd card partition
+### Modules
+
+Modules need to be installed from the kernel build directory, find using `find . -name "*.ko"`, to the modules directory on the root partition of the SD card, specifically `/lib/modules/${KERNEL_VERSION}`.
+
+Doing this poses a problem, and that is that the KERNEL_VERSION must be an exact match to that of your new kernel. 
+To avoid doing this, we can mount the SD card and set a couple of variable to use make to install directly to the SD card.
+
+The modules can be installed using the variable `INSTALL_MOD_PATH` and the target `modules_install`.
+
+```
+export INSTALL_MOD_PATH=/mnt/rpi_root
+sudo make CROSS_COMPILE=~/tools/arm-bcm2708/arm-linux-gnueabihf/bin/arm-linux-gnueabihf- modules_install
+```
+
+I am not sure why this fails to work sometimes, but if it does not work for you set `INSTALL_MOD_PATH` to a temp directory and then just copy the `KERNEL_VERSION` folder over manually.
+
+```
+mkdir tmp_modules
+export INSTALL_MOD_PATH=tmp_modules
+sudo make CROSS_COMPILE=~/tools/arm-bcm2708/arm-linux-gnueabihf/bin/arm-linux-gnueabihf- modules_install
+sudo cp -r tmp_modules/lib/modules/$KERNEL_VERSION/ /mnt/rpi_root/lib/modules/
+```
+
+After installing both the kernel and the modules unmount the sd card partition
 
 ```
 sudo umount /mnt/rpi_boot
+sudo umount /mnt/rpi_root
 ```
 
 plug it in and boot up.
@@ -154,10 +226,5 @@ make KDIR=~/linux/ CROSS_COMPILE=~/tools/arm-bcm2708/arm-linux-gnueabihf/bin/arm
 
 Then you just need to copy the module onto the RPi. Inspiration can be found [here](https://github.com/alxhoff/dotfiles/blob/master/random_scripts/build_ath9k.sh).
 Modules are found in `/lib/modules/${KERNEL_VERSION}/`
-Make sure to `depmod`.
+Make sure to `depmod` so your system indexes the new module.
 
-I like to use `scp`.
-
-```
-
-```
