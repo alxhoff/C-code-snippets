@@ -1,5 +1,4 @@
 
-#include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 
@@ -16,7 +15,7 @@ struct ring_buf {
 
 #pragma mark - private
 
-void inc_buf(rbuf_handle_t rbuf)
+static void inc_buf(rbuf_handle_t rbuf)
 {
 	assert(rbuf);
 
@@ -33,7 +32,7 @@ void inc_buf(rbuf_handle_t rbuf)
 	rbuf->full = (rbuf->head == rbuf->tail);
 }
 
-void dec_buf(rbuf_handle_t rbuf)
+static void dec_buf(rbuf_handle_t rbuf)
 {
 	assert(rbuf);
 
